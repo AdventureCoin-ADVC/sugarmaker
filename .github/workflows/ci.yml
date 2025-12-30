@@ -20,37 +20,37 @@ jobs:
           # ======================
           - name: linux-x64
             os: ubuntu-22.04
-            deps: deps-linux64
+            script: build-linux64.sh
 
           - name: linux-x86
             os: ubuntu-22.04
-            deps: deps-linux32
+            script: build-linux32.sh
 
           - name: linux-armv7l
             os: ubuntu-22.04
-            deps: deps-armv7l
+            script: build-armv7l.sh
 
           - name: linux-aarch64
             os: ubuntu-22.04
-            deps: deps-aarch64
+            script: build-aarch64.sh
 
           # ======================
           # MACOS
           # ======================
           - name: macos-x64
             os: macos-latest
-            deps: deps-osx
+            script: build-osx.sh
 
           # ======================
           # WINDOWS
           # ======================
           - name: windows-x64
             os: windows-latest
-            deps: deps-win64
+            script: build-w64.sh
 
           - name: windows-x86
             os: windows-latest
-            deps: deps-win32
+            script: build-w32.sh
 
     steps:
       - name: 🧾 Checkout repository
@@ -65,10 +65,11 @@ jobs:
           sudo apt update
           sudo apt install -y \
             build-essential \
-            cmake \
             automake \
+            autoconf \
             libtool \
             pkg-config \
+            cmake \
             curl \
             git
 
@@ -79,7 +80,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew update
-          brew install automake libtool cmake pkg-config
+          brew install automake autoconf libtool cmake pkg-config
 
       # ======================
       # WINDOWS SETUP
@@ -91,20 +92,29 @@ jobs:
           update: true
           install: >
             mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
             mingw-w64-x86_64-make
+            mingw-w64-x86_64-cmake
+            autoconf
+            automake
+            libtool
 
       # ======================
-      # BUILD STEP
+      # AUTOGEN
       # ======================
-      - name: 🔨 Build Sugarmaker (${{ matrix.deps }})
+      - name: ⚙️ Run autogen.sh
         shell: bash
         run: |
-          echo "▶ Building using ${{ matrix.deps }}"
-          cd ${{ matrix.deps }}
+          chmod +x autogen.sh
+          ./autogen.sh
 
-          chmod +x build.sh || true
-          ./build.sh
+      # ======================
+      # BUILD
+      # ======================
+      - name: 🔨 Build Sugarmaker (${{ matrix.name }})
+        shell: bash
+        run: |
+          chmod +x ${{ matrix.script }}
+          ./${{ matrix.script }}
 
       # ======================
       # ARTIFACTS
@@ -114,5 +124,6 @@ jobs:
         with:
           name: sugarmaker-${{ matrix.name }}
           path: |
-            ${{ matrix.deps }}/build/**
-            ${{ matrix.deps }}/bin/**
+            **/build/**
+            **/bin/**
+            sugarmaker*
