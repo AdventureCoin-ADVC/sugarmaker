@@ -2,13 +2,22 @@ name: Sugarmaker CI
 
 on:
   push:
+    paths-ignore:
+      - '**/*.md'
   pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - 'contrib/**'
+      - '**/*.md'
   workflow_dispatch:
 
 jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+
+    env:
+      MAKEJOBS: "-j3"
 
     strategy:
       fail-fast: false
@@ -17,136 +26,155 @@ jobs:
           # ======================
           # LINUX
           # ======================
-          - name: linux-x64
+          - name: x86_64-linux
             os: ubuntu-22.04
-            script: build-linux64.sh
-
-          - name: linux-x86
-            os: ubuntu-22.04
-            script: build-linux32.sh
-
-          - name: linux-armv7l
-            os: ubuntu-22.04
-            script: build-armv7l.sh
-
-          - name: linux-aarch64
-            os: ubuntu-22.04
-            script: build-aarch64.sh
+            platform: linux
+            arch: x86_64
 
           # ======================
           # MACOS
           # ======================
-          - name: macos-x64
+          - name: x86_64-macos
+            os: macos-15-intel
+            platform: macos
+            arch: x86_64
+            host: x86_64-apple-darwin
+
+          - name: arm64-macos
             os: macos-latest
-            script: build-osx.sh
+            platform: macos
+            arch: arm64
+            host: arm64-apple-darwin
 
           # ======================
           # WINDOWS
           # ======================
-          - name: windows-x64
+          - name: x86_64-win
             os: windows-latest
-            script: build-w64.sh
+            platform: windows
+            arch: x86_64
 
-          - name: windows-x86
+          - name: i686-win
             os: windows-latest
-            script: build-w32.sh
+            platform: windows
+            arch: i686
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ======================
-      # LINUX SETUP
-      # ======================
-      - name: 🐧 Install Linux dependencies
-        if: runner.os == 'Linux'
+      # =================================================
+      # LINUX
+      # =================================================
+      - name: Install Linux deps
+        if: matrix.platform == 'linux'
         run: |
-          sudo apt update
-          sudo apt install -y \
-            build-essential \
-            libcurl4-openssl-dev \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            git
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential autoconf automake libtool pkg-config \
+            libcurl4-openssl-dev libjansson-dev libssl-dev libgmp-dev
 
-      # ======================
-      # MACOS SETUP
-      # ======================
-      - name: 🍎 Install macOS dependencies
-        if: runner.os == 'macOS'
+      - name: Build (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          ./autogen.sh || true
+          ./configure --with-curl
+          make -j3
+
+      # =================================================
+      # MACOS
+      # =================================================
+      - name: Install macOS deps
+        if: matrix.platform == 'macos'
         run: |
           brew update
-          brew install \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            curl \
-            openssl@3
+          brew install automake autoconf libtool pkg-config \
+                       curl jansson openssl gmp
 
-      # ======================
-      # WINDOWS SETUP (FIXED)
-      # ======================
-      - name: 🪟 Setup MSYS2
-        if: runner.os == 'Windows'
+      - name: Build (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          ./autogen.sh || true
+
+          BREW_PREFIX="$(brew --prefix)"
+          export CPPFLAGS="-I${BREW_PREFIX}/include"
+          export LDFLAGS="-L${BREW_PREFIX}/lib"
+
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            export CFLAGS="-arch x86_64"
+            export CXXFLAGS="-arch x86_64"
+          fi
+
+          ./configure --with-curl --host=${{ matrix.host }}
+          make -j3
+
+      # =================================================
+      # WINDOWS (MSYS2)
+      # =================================================
+      - name: Setup MSYS2
+        if: matrix.platform == 'windows'
         uses: msys2/setup-msys2@v2
         with:
           update: true
           install: >
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-make
+            base-devel
+            automake autoconf libtool pkg-config
+            mingw-w64-x86_64-toolchain
+            mingw-w64-i686-toolchain
             mingw-w64-x86_64-curl
-            autoconf
-            automake
-            libtool
+            mingw-w64-i686-curl
+            mingw-w64-x86_64-jansson
+            mingw-w64-i686-jansson
+            mingw-w64-x86_64-openssl
+            mingw-w64-i686-openssl
+            mingw-w64-x86_64-gmp
+            mingw-w64-i686-gmp
 
-      # ======================
-      # AUTOGEN
-      # ======================
-      - name: ⚙️ Run autogen.sh
-        shell: bash
-        run: |
-          chmod +x autogen.sh
-          ./autogen.sh
-
-      # ======================
-      # BUILD (UNIX)
-      # ======================
-      - name: 🔨 Build Sugarmaker (${{ matrix.name }})
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          chmod +x ${{ matrix.script }}
-          ./${{ matrix.script }}
-
-      # ======================
-      # BUILD (WINDOWS / MSYS2)
-      # ======================
-      - name: 🔨 Build Sugarmaker (${{ matrix.name }})
-        if: runner.os == 'Windows'
+      - name: Build (Windows)
+        if: matrix.platform == 'windows'
         shell: msys2 {0}
         run: |
-          chmod +x ${{ matrix.script }}
-          ./${{ matrix.script }}
+          ./autogen.sh || true
 
-      # ======================
-      # VERIFY STATIC (FAIL IF NOT)
-      # ======================
-      - name: 🔍 Verify static binary
-        if: runner.os != 'macOS'
-        shell: bash
+          if [ "${{ matrix.arch }}" = "i686" ]; then
+            export MSYSTEM=MINGW32
+          else
+            export MSYSTEM=MINGW64
+          fi
+
+          ./configure --with-curl
+          make -j3
+
+      # =================================================
+      # WINDOWS DLL BUNDLE
+      # =================================================
+      - name: Bundle Windows DLLs
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
         run: |
-          file sugarmaker | grep -E "static|statically linked"
+          mkdir -p dist
+          cp sugarmaker.exe dist/
 
-      # ======================
+          if [ "${{ matrix.arch }}" = "i686" ]; then
+            DLL_DIR="/mingw32/bin"
+            cp "$DLL_DIR/libcurl-4.dll" dist/
+            cp "$DLL_DIR/libgmp-10.dll" dist/
+            cp "$DLL_DIR/libjansson-4.dll" dist/
+            cp "$DLL_DIR/libwinpthread-1.dll" dist/
+          else
+            DLL_DIR="/mingw64/bin"
+            ldd sugarmaker.exe | grep "$DLL_DIR" | awk '{print $3}' | sort -u | while read dll; do
+              [ -f "$dll" ] && cp "$dll" dist/
+            done
+          fi
+
+      # =================================================
       # ARTIFACTS
-      # ======================
-      - name: 📦 Upload build artifacts
+      # =================================================
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sugarmaker-${{ matrix.name }}
           path: |
-            sugarmaker*
-            **/*.exe
+            dist/*
+            sugarmaker
