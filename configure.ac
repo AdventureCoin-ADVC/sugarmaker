@@ -110,16 +110,6 @@ LDFLAGS="$LDFLAGS $LIBCURL_LDFLAGS"
 AC_SUBST(LIBCURL)
 
 # ======================
-# Windows-specific curl check
-# ======================
-case $host in
-  *-*-mingw*)
-    LIBCURL_CHECK_CONFIG(, 7.15.2, ,
-      [AC_MSG_ERROR([Missing required libcurl >= 7.15.2])])
-    ;;
-esac
-
-# ======================
 # Jansson
 # ======================
 AC_CHECK_LIB(jansson, json_loads,
