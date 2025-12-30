@@ -2,7 +2,6 @@ name: Sugarmaker CI
 
 on:
   push:
-    branches: [ main ]
   pull_request:
   workflow_dispatch:
 
@@ -65,12 +64,11 @@ jobs:
           sudo apt update
           sudo apt install -y \
             build-essential \
-            automake \
+            libcurl4-openssl-dev \
             autoconf \
+            automake \
             libtool \
             pkg-config \
-            cmake \
-            curl \
             git
 
       # ======================
@@ -80,7 +78,12 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew update
-          brew install automake autoconf libtool cmake pkg-config
+          brew install \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            curl
 
       # ======================
       # WINDOWS SETUP
@@ -93,7 +96,8 @@ jobs:
           install: >
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
-            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-pthreads
             autoconf
             automake
             libtool
@@ -108,10 +112,21 @@ jobs:
           ./autogen.sh
 
       # ======================
-      # BUILD
+      # BUILD (Unix)
       # ======================
       - name: 🔨 Build Sugarmaker (${{ matrix.name }})
+        if: runner.os != 'Windows'
         shell: bash
+        run: |
+          chmod +x ${{ matrix.script }}
+          ./${{ matrix.script }}
+
+      # ======================
+      # BUILD (Windows / MSYS2)
+      # ======================
+      - name: 🔨 Build Sugarmaker (${{ matrix.name }})
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           chmod +x ${{ matrix.script }}
           ./${{ matrix.script }}
@@ -127,3 +142,4 @@ jobs:
             **/build/**
             **/bin/**
             sugarmaker*
+            **/*.exe
