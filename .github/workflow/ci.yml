@@ -1,0 +1,118 @@
+name: Sugarmaker CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ======================
+          # LINUX
+          # ======================
+          - name: linux-x64
+            os: ubuntu-22.04
+            deps: deps-linux64
+
+          - name: linux-x86
+            os: ubuntu-22.04
+            deps: deps-linux32
+
+          - name: linux-armv7l
+            os: ubuntu-22.04
+            deps: deps-armv7l
+
+          - name: linux-aarch64
+            os: ubuntu-22.04
+            deps: deps-aarch64
+
+          # ======================
+          # MACOS
+          # ======================
+          - name: macos-x64
+            os: macos-latest
+            deps: deps-osx
+
+          # ======================
+          # WINDOWS
+          # ======================
+          - name: windows-x64
+            os: windows-latest
+            deps: deps-win64
+
+          - name: windows-x86
+            os: windows-latest
+            deps: deps-win32
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      # ======================
+      # LINUX SETUP
+      # ======================
+      - name: 🐧 Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential \
+            cmake \
+            automake \
+            libtool \
+            pkg-config \
+            curl \
+            git
+
+      # ======================
+      # MACOS SETUP
+      # ======================
+      - name: 🍎 Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install automake libtool cmake pkg-config
+
+      # ======================
+      # WINDOWS SETUP
+      # ======================
+      - name: 🪟 Setup MSYS2
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-make
+
+      # ======================
+      # BUILD STEP
+      # ======================
+      - name: 🔨 Build Sugarmaker (${{ matrix.deps }})
+        shell: bash
+        run: |
+          echo "▶ Building using ${{ matrix.deps }}"
+          cd ${{ matrix.deps }}
+
+          chmod +x build.sh || true
+          ./build.sh
+
+      # ======================
+      # ARTIFACTS
+      # ======================
+      - name: 📦 Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sugarmaker-${{ matrix.name }}
+          path: |
+            ${{ matrix.deps }}/build/**
+            ${{ matrix.deps }}/bin/**
