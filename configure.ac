@@ -110,6 +110,19 @@ LDFLAGS="$LDFLAGS $LIBCURL_LDFLAGS"
 AC_SUBST(LIBCURL)
 
 # ======================
+# libcurl (portable)
+# ======================
+AC_CHECK_HEADERS([curl/curl.h], ,
+  [AC_MSG_ERROR([libcurl headers not found])])
+
+AC_CHECK_LIB([curl], [curl_easy_init],
+  [
+    LIBS="$LIBS -lcurl"
+  ],
+  [AC_MSG_ERROR([libcurl library not found])])
+
+
+# ======================
 # Jansson
 # ======================
 AC_CHECK_LIB(jansson, json_loads,
