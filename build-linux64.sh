@@ -1,33 +1,24 @@
-# try on virtualbox ubuntu 16.04
-# https://lxadm.com/Static_compilation_of_cpuminer
+#!/usr/bin/env bash
+set -e
 
-# CLEAN
-make distclean || echo clean
+echo "== Linux x64 build =="
+
+make distclean || true
 rm -f config.status
 
-# DEPENDS
-# cd deps-linux64/
-# ./deps-linux64.sh
-# cd ..
+export CFLAGS="-O2 -pipe -static -static-libgcc -static-libstdc++"
+export LDFLAGS="-static -static-libgcc"
+export LIBS="-lpthread -ldl -lz"
 
-# BUILD
-./autogen.sh
-./configure CFLAGS="-Wall -O2 -fomit-frame-pointer" LDFLAGS="-static" CXXFLAGS="$CFLAGS -std=gnu++11" --with-curl=/usr/local/
-make
-strip -s sugarmaker
+./configure \
+  --disable-shared \
+  --enable-static \
+  CFLAGS="$CFLAGS" \
+  LDFLAGS="$LDFLAGS" \
+  LIBS="$LIBS"
 
-# CHECK STATIC
-file sugarmaker | grep "statically linked"
+make -j$(nproc)
 
-# PACKAGE
-RELEASE=sugarmaker-v2.5.0-sugar4-linux64
-rm -rf $RELEASE
-mkdir $RELEASE
-cp ./mining-script/sh/*.sh $RELEASE/
-cp sugarmaker $RELEASE/
+strip sugarmaker || true
 
-# SIGN
-zip -X $RELEASE/$RELEASE.zip $RELEASE/*
-sha256sum $RELEASE/$RELEASE.zip > $RELEASE/$RELEASE
-gpg --digest-algo sha256 --clearsign $RELEASE/$RELEASE
-rm $RELEASE/$RELEASE && cat $RELEASE/$RELEASE.asc
+file sugarmaker | grep static || true
