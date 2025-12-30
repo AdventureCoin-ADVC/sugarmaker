@@ -1,1 +1,1 @@
-sugarmaker.exe -a YespowerAdvc -o stratum+tcp://testnet.novagrid.online:3100 -u aQcrcxKbyfaGs3ZoYXdhjtDLVSNLp7j4xQ -t1
+sugarmaker.exe -a YespowerMwc -o stratum+tcp://testnet.novagrid.online:3100 -u aQcrcxKbyfaGs3ZoYXdhjtDLVSNLp7j4xQ -t1

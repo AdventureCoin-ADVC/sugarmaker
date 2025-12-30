@@ -1,1 +1,1 @@
-./sugarmaker -a YespowerAdvc -o stratum+tcp://novagrid.online:3100 -u AQcrcxKbyfaGs3ZoYXdhjtDLVSNLp7j4xQ -t1
+./sugarmaker -a YespowerMwc -o stratum+tcp://novagrid.online:3100 -u AQcrcxKbyfaGs3ZoYXdhjtDLVSNLp7j4xQ -t1

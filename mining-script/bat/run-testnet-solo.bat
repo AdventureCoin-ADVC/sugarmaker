@@ -1,1 +1,1 @@
-sugarmaker.exe -a YespowerAdvc -o http://127.0.0.1:34229 -u RPCUSER -p RPCPASSWORD --coinbase-addr=aQcrcxKbyfaGs3ZoYXdhjtDLVSNLp7j4xQ -t1
+sugarmaker.exe -a YespowerMwc -o http://127.0.0.1:15579 -u RPCUSER -p RPCPASSWORD --coinbase-addr=aQcrcxKbyfaGs3ZoYXdhjtDLVSNLp7j4xQ -t1
