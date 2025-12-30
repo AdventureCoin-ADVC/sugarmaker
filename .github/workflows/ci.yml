@@ -2,6 +2,7 @@ name: Sugarmaker CI
 
 on:
   push:
+    branches: [ main ]
   pull_request:
   workflow_dispatch:
 
@@ -83,10 +84,11 @@ jobs:
             automake \
             libtool \
             pkg-config \
-            curl
+            curl \
+            openssl@3
 
       # ======================
-      # WINDOWS SETUP
+      # WINDOWS SETUP (FIXED)
       # ======================
       - name: 🪟 Setup MSYS2
         if: runner.os == 'Windows'
@@ -97,7 +99,6 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
             mingw-w64-x86_64-curl
-            mingw-w64-x86_64-pthreads
             autoconf
             automake
             libtool
@@ -112,7 +113,7 @@ jobs:
           ./autogen.sh
 
       # ======================
-      # BUILD (Unix)
+      # BUILD (UNIX)
       # ======================
       - name: 🔨 Build Sugarmaker (${{ matrix.name }})
         if: runner.os != 'Windows'
@@ -122,7 +123,7 @@ jobs:
           ./${{ matrix.script }}
 
       # ======================
-      # BUILD (Windows / MSYS2)
+      # BUILD (WINDOWS / MSYS2)
       # ======================
       - name: 🔨 Build Sugarmaker (${{ matrix.name }})
         if: runner.os == 'Windows'
@@ -132,6 +133,15 @@ jobs:
           ./${{ matrix.script }}
 
       # ======================
+      # VERIFY STATIC (FAIL IF NOT)
+      # ======================
+      - name: 🔍 Verify static binary
+        if: runner.os != 'macOS'
+        shell: bash
+        run: |
+          file sugarmaker | grep -E "static|statically linked"
+
+      # ======================
       # ARTIFACTS
       # ======================
       - name: 📦 Upload build artifacts
@@ -139,7 +149,5 @@ jobs:
         with:
           name: sugarmaker-${{ matrix.name }}
           path: |
-            **/build/**
-            **/bin/**
             sugarmaker*
             **/*.exe
